@@ -1,6 +1,7 @@
 import serial
 import struct
 from datetime import datetime
+from protection_states import ProtectionState
 
 ## Constants
 basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'
@@ -21,13 +22,21 @@ def validate_response(data):
 
 # Takes the actual data as list of bytes represented as integers and calculates the checksum
 def calculate_checksum(length, data):
-    data_sum = sum(data)
-    return (data_sum + length - 1) ^ 0xffff
+    return (sum(data) + length - 1) ^ 0xffff
 
 
 def value_to_date(value):
     # unpack two bytes to date according to documentation
     return datetime(2000 + (value >> 9), (value >> 5) & 0x0f, value & 0x1f)
+
+
+def value_to_protection_state(value):
+    active_states = []
+    # Iterate over all ProtectionStates and check if the specific bit is 1 (state active) or 0 (state inactive)
+    for state in ProtectionState:
+        if value & (1 << state.value):
+            active_states.append(state)
+    return active_states
 
 
 # Can be used if no BMS is connected. Supplies some data captured from my BMS
@@ -67,6 +76,7 @@ class BMS:
         self.cycle_times = -1
         self.manufacturing_date = datetime.now()
         self.rsoc = -1
+        self.active_protection_states = []
         self.discharge_status = False
         self.charge_status = False
         self.cell_voltages = []
@@ -119,8 +129,8 @@ class BMS:
         self.cycle_times = unpacked[4]  # cycle times
         self.manufacturing_date = value_to_date(unpacked[5])  # manufacturing date
         # 6 balance state low
-        # 7 valance state hight
-        # 8 Protection state
+        # 7 valance state high
+        self.active_protection_states = value_to_protection_state(unpacked[8])  # Protection state
         # 9 Software version
         self.rsoc = unpacked[10] # remaining state of charge in percent
         self.discharge_status = bool(int(bin(unpacked[11])[2])) # discharging status

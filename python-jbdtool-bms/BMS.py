@@ -33,9 +33,9 @@ def value_to_date(value):
 def value_to_protection_state(value):
     active_states = []
     # Iterate over all ProtectionStates and check if the specific bit is 1 (state active) or 0 (state inactive)
-    for state in ProtectionState:
-        if value & (1 << state.value):
-            active_states.append(state)
+    for bit in range(16):
+        if value & (1 << bit):
+            active_states.append(ProtectionState(bit))
     return active_states
 
 
@@ -142,3 +142,8 @@ class BMS:
         raw_voltages = struct.unpack(self.__cell_voltages_struct_format, response[4:-3])
         # Unit is mV, divide by 1000 to get volts
         self.cell_voltages = [raw / 1000 for raw in raw_voltages]
+
+
+if __name__ == "__main__":
+    for i in range(10000):
+        BMS('', offline=True)

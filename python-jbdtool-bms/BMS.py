@@ -6,7 +6,7 @@ from protection_states import ProtectionState
 ## Constants
 basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'
 # Struct format onyl contains the static part. For every available NTC temp sensor, a 'H' will be added.
-basic_info_boilerplate = ">HHHHHHHHHBBBBB"
+basic_info_boilerplate = ">HHHHHHIHcBBBB"
 cell_voltages_query = b'\xdd\xa5\x04\x00\xff\xfc\x77'
 # Same as above, just for the number of cells
 cell_voltages_boilerplate = ">"
@@ -39,6 +39,13 @@ def value_to_protection_state(value):
     return active_states
 
 
+def value_to_balance_state(value, number_of_cells):
+    balance_states = []
+    for cell in range(number_of_cells):
+        balance_states.append(bool(value & (1 << cell)))
+    return balance_states
+
+
 # Can be used if no BMS is connected. Supplies some data captured from my BMS
 def debug_query(query):
     if query == basic_info_query:
@@ -66,9 +73,8 @@ class BMS:
             self.connection = serial.Serial(port=serial_port, timeout=1, baudrate=9600, parity=serial.PARITY_EVEN,
                                             stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS)
 
-        self.__basic_info_struct_format, self.__cell_voltages_struct_format = self.__init_bms()
-
         # Init variables
+        self.number_of_cells = -1
         self.total_voltage = -1
         self.current = -1
         self.residual_capacity = -1
@@ -76,12 +82,16 @@ class BMS:
         self.cycle_times = -1
         self.manufacturing_date = datetime.now()
         self.rsoc = -1
+        self.balance_states = []
         self.active_protection_states = []
+        self.software_version = b''
         self.discharge_status = False
         self.charge_status = False
         self.cell_voltages = []
+        self.temperatures = []
 
         # Initialize data
+        self.__basic_info_struct_format, self.__cell_voltages_struct_format = self.__init_bms()
         self.query_all()
 
     def __init_bms(self):
@@ -91,9 +101,9 @@ class BMS:
         # Read number of NTC temp sensors from byte 26 to adjust format
         number_of_ntcs = response[26]
         # Read number of cells from byte 25 to adjust format
-        number_of_cells = response[25]
+        self.number_of_cells = response[25]
         # Append unsigned shorts to boilerplates to decode BMS messages later...
-        return basic_info_boilerplate + number_of_ntcs * "H", cell_voltages_boilerplate + number_of_cells * "H"
+        return basic_info_boilerplate + number_of_ntcs * "H", cell_voltages_boilerplate + self.number_of_cells * "H"
 
     def __query_bms(self, query):
         if self.__debug:
@@ -128,13 +138,13 @@ class BMS:
         self.nominal_capacity = unpacked[3] / 100  # nominal capacity in 10mAh
         self.cycle_times = unpacked[4]  # cycle times
         self.manufacturing_date = value_to_date(unpacked[5])  # manufacturing date
-        # 6 balance state low
-        # 7 valance state high
-        self.active_protection_states = value_to_protection_state(unpacked[8])  # Protection state
-        # 9 Software version
-        self.rsoc = unpacked[10] # remaining state of charge in percent
-        self.discharge_status = bool(int(bin(unpacked[11])[2])) # discharging status
-        self.charge_status = bool(int(bin(unpacked[11])[3])) # charging status
+        self.balance_states = value_to_balance_state(unpacked[6], self.number_of_cells)
+        self.active_protection_states = value_to_protection_state(unpacked[7])  # Protection state
+        self.software_version = unpacked[8]  # 8 Software version
+        self.rsoc = unpacked[9]  # remaining state of charge in percent
+        self.discharge_status = bool(int(bin(unpacked[10])[2]))  # discharging status
+        self.charge_status = bool(int(bin(unpacked[10])[3]))  # charging status
+        self.temperatures = [(raw - 2731) / 10 for raw in unpacked[13:]]  # Temp in 100mK converted to °C
 
     def query_cell_voltages(self):
         response = self.__query_bms(cell_voltages_query)

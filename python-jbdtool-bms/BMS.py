@@ -13,7 +13,7 @@ cell_voltages_boilerplate = ">"
 
 
 # Compares the checksum extracted from the response (third and second last bytes) and compares it with the caluclated checksum
-def validate_response(data):
+def check_checksum(data):
     length = data[3]
     received_checksum, = struct.unpack(">H", data[-3:-1])
     calculated_checksum = calculate_checksum(length, data[4:-3])
@@ -56,12 +56,12 @@ def debug_query(query):
         raise ValueError("Invalid query")
 
 
-def check_response(query, response):
+def validate_response(query, response):
     # The queried register address needs to match retuned register address and the third byte needs to be 0 for the query to be successful
     if query[2] != response[1] or response[2] != 0:
         raise ValueError("BMS sent error")
 
-    if not validate_response(response):
+    if not check_checksum(response):
         raise ValueError("Checksum mismatch")
 
 
@@ -97,7 +97,7 @@ class BMS:
     def __init_bms(self):
         # Only doing this once as these values will not change, saves some µA :D
         response = self.__query_bms(basic_info_query)
-        check_response(basic_info_query, response)
+        validate_response(basic_info_query, response)
         # Read number of NTC temp sensors from byte 26 to adjust format
         number_of_ntcs = response[26]
         # Read number of cells from byte 25 to adjust format
@@ -130,7 +130,7 @@ class BMS:
 
     def query_basic_info(self):
         response = self.__query_bms(basic_info_query)
-        check_response(basic_info_query, response)
+        validate_response(basic_info_query, response)
         unpacked = struct.unpack(self.__basic_info_struct_format, response[4:-3])
         self.total_voltage = unpacked[0] / 100  # total voltage in 10mV
         self.current = unpacked[1] / 100  # current in 10mA
@@ -148,12 +148,7 @@ class BMS:
 
     def query_cell_voltages(self):
         response = self.__query_bms(cell_voltages_query)
-        check_response(cell_voltages_query, response)
+        validate_response(cell_voltages_query, response)
         raw_voltages = struct.unpack(self.__cell_voltages_struct_format, response[4:-3])
         # Unit is mV, divide by 1000 to get volts
         self.cell_voltages = [raw / 1000 for raw in raw_voltages]
-
-
-if __name__ == "__main__":
-    for i in range(10000):
-        BMS('', offline=True)

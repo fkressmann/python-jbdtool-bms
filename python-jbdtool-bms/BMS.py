@@ -4,12 +4,12 @@ from datetime import datetime
 from protection_states import ProtectionState
 
 ## Constants
-basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'
+_basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'
 # Struct format onyl contains the static part. For every available NTC temp sensor, a 'H' will be added.
-basic_info_boilerplate = ">HhHHHHIHcBBBB"
-cell_voltages_query = b'\xdd\xa5\x04\x00\xff\xfc\x77'
+_basic_info_boilerplate = ">HhHHHHIHcBBBB"
+_cell_voltages_query = b'\xdd\xa5\x04\x00\xff\xfc\x77'
 # Same as above, just for the number of cells
-cell_voltages_boilerplate = ">"
+_cell_voltages_boilerplate = ">"
 
 
 # Compares the checksum extracted from the response (third and second last bytes) and compares it with the caluclated checksum
@@ -48,9 +48,9 @@ def value_to_balance_state(value, number_of_cells):
 
 # Can be used if no BMS is connected. Supplies some data captured from my BMS
 def debug_query(query):
-    if query == basic_info_query:
+    if query == _basic_info_query:
         return b'\xdd\x03\x00\x1b\x05\x4c\x00\x00\x24\xf2\x2a\xf8\x00\x00\x28\xd2\x00\x00\x00\x00\x00\x00\x17\x56\x03\x04\x02\x09\x7f\x0b\xa9\xfa\xb0\x77'
-    elif query == cell_voltages_query:
+    elif query == _cell_voltages_query:
         return b'\xdd\x04\x00\x08\x0d\x42\x0d\x3c\x0d\x40\x0d\x3a\xfe\xcc\x77'
     else:
         raise ValueError("Invalid query")
@@ -96,14 +96,14 @@ class BMS:
 
     def __init_bms(self):
         # Only doing this once as these values will not change, saves some µA :D
-        response = self.__query_bms(basic_info_query)
-        validate_response(basic_info_query, response)
+        response = self.__query_bms(_basic_info_query)
+        validate_response(_basic_info_query, response)
         # Read number of NTC temp sensors from byte 26 to adjust format
         number_of_ntcs = response[26]
         # Read number of cells from byte 25 to adjust format
         self.number_of_cells = response[25]
         # Append unsigned shorts to boilerplates to decode BMS messages later...
-        return basic_info_boilerplate + number_of_ntcs * "H", cell_voltages_boilerplate + self.number_of_cells * "H"
+        return _basic_info_boilerplate + number_of_ntcs * "H", _cell_voltages_boilerplate + self.number_of_cells * "H"
 
     def __query_bms(self, query):
         if self.__debug:
@@ -129,8 +129,8 @@ class BMS:
         self.query_cell_voltages()
 
     def query_basic_info(self):
-        response = self.__query_bms(basic_info_query)
-        validate_response(basic_info_query, response)
+        response = self.__query_bms(_basic_info_query)
+        validate_response(_basic_info_query, response)
         unpacked = struct.unpack(self.__basic_info_struct_format, response[4:-3])
         self.total_voltage = unpacked[0] / 100  # total voltage in 10mV
         self.current = unpacked[1] / 100  # current in 10mA
@@ -147,11 +147,8 @@ class BMS:
         self.temperatures = [(raw - 2731) / 10 for raw in unpacked[13:]]  # Temp in 100mK converted to °C
 
     def query_cell_voltages(self):
-        response = self.__query_bms(cell_voltages_query)
-        validate_response(cell_voltages_query, response)
+        response = self.__query_bms(_cell_voltages_query)
+        validate_response(_cell_voltages_query, response)
         raw_voltages = struct.unpack(self.__cell_voltages_struct_format, response[4:-3])
         # Unit is mV, divide by 1000 to get volts
         self.cell_voltages = [raw / 1000 for raw in raw_voltages]
-
-# ToDo: Balnce state is read the wrong war around
-# ToDo: Move date parsing to init_bms method, needs only to be doen once

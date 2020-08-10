@@ -39,9 +39,10 @@ def value_to_protection_state(value):
     return active_states
 
 
+# ToDo: Balance state is read the wrong way around. Not sure how to read it atm
 def value_to_balance_state(value, number_of_cells):
     balance_states = []
-    for cell in range(number_of_cells):
+    for cell in range(32):
         balance_states.append(bool(value & (1 << cell)))
     return balance_states
 
@@ -68,6 +69,7 @@ def validate_response(query, response):
 class BMS:
     def __init__(self, serial_port, query_retries=3, offline=False):
         self.__debug = offline
+        self.__is_initialized = False
         self.__query_reties = query_retries
         if not offline:
             self.__connection = serial.Serial(port=serial_port, timeout=1, baudrate=9600, parity=serial.PARITY_EVEN,
@@ -135,16 +137,20 @@ class BMS:
         self.total_voltage = unpacked[0] / 100  # total voltage in 10mV
         self.current = unpacked[1] / 100  # current in 10mA
         self.residual_capacity = unpacked[2] / 100  # residual capacity in 10mAh
-        self.nominal_capacity = unpacked[3] / 100  # nominal capacity in 10mAh
         self.cycle_times = unpacked[4]  # cycle times
-        self.manufacturing_date = value_to_date(unpacked[5])  # manufacturing date
         self.balance_states = value_to_balance_state(unpacked[6], self.number_of_cells)
         self.active_protection_states = value_to_protection_state(unpacked[7])  # Protection state
-        self.software_version = unpacked[8]  # 8 Software version
         self.rsoc = unpacked[9]  # remaining state of charge in percent
         self.discharge_status = bool(int(bin(unpacked[10])[2]))  # discharging status
         self.charge_status = bool(int(bin(unpacked[10])[3]))  # charging status
         self.temperatures = [(raw - 2731) / 10 for raw in unpacked[13:]]  # Temp in 100mK converted to °C
+
+        # Only need to be parsed once as those parameters will not change while the BMS is connected
+        if not self.__is_initialized:
+            self.nominal_capacity = unpacked[3] / 100  # nominal capacity in 10mAh
+            self.manufacturing_date = value_to_date(unpacked[5])  # manufacturing date
+            self.software_version = unpacked[8]  # Software version
+            self.__is_initialized = True
 
     def query_cell_voltages(self):
         response = self.__query_bms(_cell_voltages_query)

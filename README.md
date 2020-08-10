@@ -35,6 +35,5 @@ The readings can be accessed directly on the instance:
 - ```toal_voltage``` in volts (V)
 
 ## ToDo / Known Issues
-- Balance state is the wrong way around, first cell is last value in list at the moment
-- Only parse data which does not change once (like manufacturing date)
+- Balance state is the wrong way around, not sure how to interpret those 32 bit at the moment... Needs further research.
 - Include energy saver mode to only query important data (my system is driven by that battery, so every µA counts :D)

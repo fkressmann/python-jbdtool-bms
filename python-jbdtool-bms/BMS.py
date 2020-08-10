@@ -6,7 +6,7 @@ from protection_states import ProtectionState
 ## Constants
 basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'
 # Struct format onyl contains the static part. For every available NTC temp sensor, a 'H' will be added.
-basic_info_boilerplate = ">HHHHHHIHcBBBB"
+basic_info_boilerplate = ">HhHHHHIHcBBBB"
 cell_voltages_query = b'\xdd\xa5\x04\x00\xff\xfc\x77'
 # Same as above, just for the number of cells
 cell_voltages_boilerplate = ">"
@@ -70,8 +70,8 @@ class BMS:
         self.__debug = offline
         self.__query_reties = query_retries
         if not offline:
-            self.connection = serial.Serial(port=serial_port, timeout=1, baudrate=9600, parity=serial.PARITY_EVEN,
-                                            stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS)
+            self.__connection = serial.Serial(port=serial_port, timeout=1, baudrate=9600, parity=serial.PARITY_EVEN,
+                                              stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS)
 
         # Init variables
         self.number_of_cells = -1
@@ -113,15 +113,15 @@ class BMS:
 
         # Read first 4 bytes (stat byte, register address, check byte and message length)
         while len(response) < 4:
-            self.connection.write(query)
-            response.extend(self.connection.read(4))
+            self.__connection.write(query)
+            response.extend(self.__connection.read(4))
             retries += 1
             if retries > self.__query_reties:
                 raise ValueError("Cloud not get a response from BMS. Maybe not connected properly?")
 
         # Length of the response is given in byte 3, determines how much bytes to read (+3 for 2 checksum bytes and stop byte)
         length = response[3]
-        response.extend(self.connection.read(length + 3))
+        response.extend(self.__connection.read(length + 3))
         return response
 
     def query_all(self):
@@ -152,3 +152,6 @@ class BMS:
         raw_voltages = struct.unpack(self.__cell_voltages_struct_format, response[4:-3])
         # Unit is mV, divide by 1000 to get volts
         self.cell_voltages = [raw / 1000 for raw in raw_voltages]
+
+# ToDo: Balnce state is read the wrong war around
+# ToDo: Move date parsing to init_bms method, needs only to be doen once

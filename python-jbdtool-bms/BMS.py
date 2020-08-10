@@ -32,10 +32,11 @@ def value_to_date(value):
 
 def value_to_protection_state(value):
     active_states = []
-    # Iterate over all ProtectionStates and check if the specific bit is 1 (state active) or 0 (state inactive)
-    for bit in range(16):
-        if value & (1 << bit):
-            active_states.append(ProtectionState(bit))
+    if value != 0:
+        # Iterate over all ProtectionStates and check if the specific bit is 1 (state active) or 0 (state inactive)
+        for bit in range(16):
+            if value & (1 << bit):
+                active_states.append(ProtectionState(bit))
     return active_states
 
 

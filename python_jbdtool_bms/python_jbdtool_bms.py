@@ -1,7 +1,7 @@
 import serial
 import struct
 from datetime import datetime
-from protection_states import ProtectionState
+from python_jbdtool_bms.protection_states import ProtectionState
 
 ## Constants
 _basic_info_query = b'\xdd\xa5\x03\x00\xff\xfd\x77'

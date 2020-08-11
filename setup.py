@@ -6,7 +6,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name = 'python-jbdtool-bms',         # How you named your package folder (MyLib)
-    packages = ['python-jbdtool-bms'],   # Chose the same as "name"
+    packages = ['python_jbdtool_bms'],   # Chose the same as "name"
     version = '0.1',      # Start with a small number and increase it with every change you make
     license='MIT',        # Chose a license from here: https://help.github.com/articles/licensing-a-repository
     description = 'Connect to JBD / xioxiang BMS using serial port and read data from it',   # Give a short description about your library

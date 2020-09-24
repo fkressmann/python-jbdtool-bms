@@ -1,9 +1,9 @@
 # python-jbdtool-bms
-This Python library allows connection to Lithium BMS with a UART to USB adapter and read the battery information.
+This Python library allows connection to Lithium BMS with a UART to USB adapter and read the battery information. Those BMS modules are commonly soled under the brands Jiabaida or Xiaoxiang
 
 The information on how the protocol works was taken from a more or less official excel file I found online (included in the resources folder)
 
-It's currently under development and may still deliver incorrect data.
+It's currently under development and may still deliver incorrect data. At the moment, only reading of information is supported. Maybe I will add some functionality to edit the settings of the BMS in the future, collaboration is welcome :)
 
 ## Documentation
 ### Initialisation
